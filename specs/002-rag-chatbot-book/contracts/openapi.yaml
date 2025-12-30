@@ -1,0 +1,338 @@
+openapi: 3.1.0
+info:
+  title: RAG Chatbot API
+  description: |
+    Retrieval-Augmented Generation chatbot for book content Q&A.
+    Supports BOOK mode (retrieval-based) and SELECTED_TEXT mode (highlight-based).
+  version: 1.0.0
+  contact:
+    name: Book Authors
+    email: authors@example.com
+
+servers:
+  - url: https://api.book.example.com/v1
+    description: Production server
+  - url: http://localhost:8000/v1
+    description: Local development server
+
+security:
+  - APIKeyHeader: []
+
+tags:
+  - name: Chat
+    description: Session management
+  - name: RAG
+    description: Query and ingestion endpoints
+
+paths:
+  /chat/session:
+    post:
+      tags:
+        - Chat
+      summary: Create or resume chat session
+      description: |
+        Creates a new session or returns existing session based on cookies.
+        Sessions track conversation context and query history.
+      operationId: createSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCreateRequest'
+      responses:
+        '200':
+          description: Session created or resumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rag/query:
+    post:
+      tags:
+        - RAG
+      summary: Query book content
+      description: |
+        Main endpoint for asking questions about the book.
+
+        **BOOK mode**: Retrieves relevant chunks and generates answer.
+        **SELECTED_TEXT mode**: Uses only highlighted text as context.
+
+        Response includes citations to source chunks.
+      operationId: queryRAG
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RAGQueryRequest'
+      responses:
+        '200':
+          description: Answer generated with citations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RAGQueryResponse'
+        '400':
+          description: Invalid request or mode mismatch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rag/ingest:
+    post:
+      tags:
+        - RAG
+      summary: Trigger content ingestion
+      description: |
+        Ingests book content from Markdown/MDX files into the RAG system.
+        Requires API key authentication.
+      security:
+        - APIKeyHeader: []
+      operationId: ingestContent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestRequest'
+      responses:
+        '200':
+          description: Ingestion started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestResponse'
+        '401':
+          description: Unauthorized - invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Ingestion failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      description: |
+        Checks connectivity to all backend services:
+        - Gemini API
+        - Qdrant vector database
+        - Neon Postgres
+      operationId: healthCheck
+      responses:
+        '200':
+          description: All services healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: One or more services unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  securitySchemes:
+    APIKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    # Request Schemas
+    SessionCreateRequest:
+      type: object
+      required:
+        - page_url
+      properties:
+        page_url:
+          type: string
+          format: uri
+          description: Current page URL for context
+        user_agent:
+          type: string
+          description: Browser user agent string
+
+    RAGQueryRequest:
+      type: object
+      required:
+        - question
+        - mode
+        - page_url
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: User's question about the book
+        mode:
+          type: string
+          enum: [book, selected_text]
+          description: Query mode
+        page_url:
+          type: string
+          format: uri
+          description: Current page URL
+        chapter_id:
+          type: integer
+          description: Optional chapter number for retrieval bias
+        section_anchor:
+          type: string
+          description: Optional section anchor for retrieval bias
+        selected_text:
+          type: string
+          maxLength: 5000
+          description: |
+            Required for selected_text mode.
+            Text highlighted by the user.
+
+    IngestRequest:
+      type: object
+      required:
+        - book_version
+        - content_path
+      properties:
+        book_version:
+          type: string
+          description: Version identifier (git SHA or semantic version)
+        content_path:
+          type: string
+          description: Path to Markdown/MDX content directory
+        dry_run:
+          type: boolean
+          default: false
+          description: If true, validate without persisting
+
+    # Response Schemas
+    SessionResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: Session identifier
+        created_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+        page_url:
+          type: string
+
+    ChunkCitation:
+      type: object
+      properties:
+        chunk_id:
+          type: string
+          description: Deterministic chunk identifier
+        chapter_title:
+          type: string
+          description: Chapter title for display
+        section_anchor:
+          type: string
+          description: Section anchor for navigation
+        source_path:
+          type: string
+          description: Source file path
+
+    RAGQueryResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+          description: Generated answer
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChunkCitation'
+          description: Source citations for the answer
+        mode:
+          type: string
+          enum: [book, selected_text]
+          description: Mode used for this query
+        retrieved_chunk_ids:
+          type: array
+          items:
+            type: string
+          description: Chunk IDs retrieved (empty for selected_text mode)
+        book_version:
+          type: string
+          description: Book version used for this query
+        latency_ms:
+          type: integer
+          description: Total response time in milliseconds
+
+    IngestResponse:
+      type: object
+      properties:
+        ingest_id:
+          type: integer
+          description: Ingestion run identifier
+        status:
+          type: string
+          enum: [started, completed, failed]
+        book_version:
+          type: string
+        total_chunks:
+          type: integer
+          description: Total chunks created
+        started_at:
+          type: string
+          format: date-time
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        gemini:
+          type: boolean
+          description: Gemini API connectivity
+        qdrant:
+          type: boolean
+          description: Qdrant connectivity
+        neon:
+          type: boolean
+          description: Neon Postgres connectivity
+        version:
+          type: string
+          description: API version string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Human-readable error message
+        code:
+          type: integer
+          description: HTTP status code
