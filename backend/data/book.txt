@@ -1,0 +1,9 @@
+# This is a placeholder for the book content.
+# In a real scenario, this would be the full text of the AI Robotics book.
+
+The rise of artificial intelligence and robotics is transforming our world.
+This book provides a comprehensive introduction to the exciting field of AI-powered humanoid robotics.
+We will explore the key concepts, technologies, and challenges in building and programming intelligent robots that can interact with the physical world.
+From the basics of ROS 2 to advanced topics like digital twin simulation and VLA integration, this book will guide you on a journey to create your own AI-powered robot.
+The capstone project will challenge you to build a humanoid robot that can perform complex tasks using visual language grounding.
+Join us on this adventure into the future of robotics.
