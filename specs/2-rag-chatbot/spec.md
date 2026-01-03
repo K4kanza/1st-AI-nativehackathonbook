@@ -1,0 +1,96 @@
+# Feature Specification: Integrated RAG Chatbot for Book
+
+**Feature Branch**: `2-rag-chatbot`
+**Created**: 2025-12-25
+**Status**: Draft
+**Input**: User description: "Build and embed a Retrieval-Augmented Generation (RAG) chatbot inside the published book (e.g., Docusaurus site). The chatbot must answer questions only from the book's content, and must support a 'Selected Text Only' mode that answers strictly from user-highlighted passages."
+
+## User Scenarios & Testing *(mandatory)*
+
+### User Story 1 - Book Reader Inquiry (Priority: P1)
+
+As a book reader, I want to ask questions about the book content and get accurate answers based only on the book's information so I can quickly clarify concepts without external sources.
+
+**Why this priority**: This is the core functionality that provides value to readers by enabling quick access to information within the book.
+
+**Independent Test**: Reader can ask a question and receive an answer that is grounded in the book's content with proper citations.
+
+**Acceptance Scenarios**:
+
+1. **Given** a reader has a question about book content, **When** they use the chatbot to ask the question, **Then** they receive an answer based only on the book's content with citations.
+2. **Given** a reader asks a question not covered in the book, **When** they submit the question, **Then** they receive a response indicating the information is not in the book.
+
+---
+
+### User Story 2 - Selected Text Focus (Priority: P2)
+
+As a book reader, I want to highlight specific text and ask questions only about that text so I can get focused answers without interference from other book content.
+
+**Why this priority**: Provides enhanced precision for readers who want to focus on specific content they've highlighted.
+
+**Independent Test**: Reader can highlight text, ask a question, and receive an answer only from the selected text.
+
+**Acceptance Scenarios**:
+
+1. **Given** a reader has highlighted text in the book, **When** they ask a question in 'Selected Text Only' mode, **Then** the answer is based only on the highlighted text.
+2. **Given** a reader has highlighted text that doesn't contain the answer, **When** they ask a question in 'Selected Text Only' mode, **Then** they receive a response indicating the answer is not in the selected text.
+
+---
+
+### User Story 3 - Content Verification (Priority: P3)
+
+As a book author/publisher, I want to ensure the chatbot only provides answers based on the book content so I can maintain content accuracy and prevent hallucinations.
+
+**Why this priority**: Ensures the integrity of the book content and prevents the spread of incorrect information.
+
+**Independent Test**: The system can be verified to only respond with information from the book and provide citations for all claims.
+
+**Acceptance Scenarios**:
+
+1. **Given** a question that requires external knowledge, **When** the chatbot processes the question, **Then** it responds that the information is not in the book.
+2. **Given** a chatbot response, **When** reviewing the citations, **Then** all information can be traced back to specific book content.
+
+---
+
+### Edge Cases
+
+- What happens when a user's question is ambiguous and could refer to multiple sections?
+- How does the system handle questions that require knowledge from multiple non-adjacent sections?
+- What if the selected text is too short to provide meaningful context for the question?
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+- **FR-001**: Chatbot MUST answer questions based only on the book's content, with no external information sources
+- **FR-002**: Chatbot MUST support "Selected Text Only" mode that restricts answers to user-highlighted passages
+- **FR-003**: Chatbot MUST provide citations for answers, including chapter/section and chunk_id references
+- **FR-004**: System MUST generate deterministic chunk IDs for reproducible content retrieval
+- **FR-005**: System MUST support versioned content ingestion with traceable retrieval logs
+- **FR-006**: Frontend widget MUST be embeddable in a Docusaurus site
+- **FR-007**: System MUST capture page context (page_url, chapter_id, section_anchor) when questions are asked
+- **FR-008**: System MUST use Google Gemini API for content generation
+- **FR-009**: System MUST use FastAPI for the backend RAG service
+- **FR-010**: System MUST use Neon Serverless Postgres for metadata, sessions, and audit logs with connection pooling
+- **FR-011**: System MUST use Qdrant Cloud as the vector database for content embeddings
+
+### Key Entities
+
+- **Book Content**: The source material from which the chatbot draws information, organized by chapters, sections, and paragraphs
+- **Chunks**: Segments of book content that have been processed and embedded for retrieval, with deterministic IDs
+- **Queries**: User questions submitted to the chatbot with associated metadata (mode, context, selected text)
+- **Responses**: Answers generated by the chatbot with citations and diagnostic information
+- **Sessions**: User interaction contexts that maintain conversation state
+- **Citations**: References to specific book content that support chatbot responses
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: 100% of chatbot answers are grounded in book content with no hallucinations
+- **SC-002**: At least 90% of relevant questions receive answers with proper citations
+- **SC-003**: "Selected Text Only" mode correctly restricts responses to highlighted content 98% of the time
+- **SC-004**: Response latency is under 5 seconds for 95% of queries
+- **SC-005**: System correctly identifies when information is not available in the book or selected text 95% of the time
+- **SC-006**: Content ingestion is reproducible (same input produces identical chunk IDs)
+- **SC-007**: System maintains stable performance under 100 concurrent users
